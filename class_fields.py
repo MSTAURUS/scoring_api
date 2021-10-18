@@ -11,6 +11,10 @@ GENDERS = {
 
 
 class Field:
+    """
+    Field base class
+    """
+
     def __init__(self, required=False, nullable=True):
         self.required = required
         self.nullable = nullable
@@ -42,6 +46,10 @@ class Field:
 
 
 class CharField(Field):
+    """
+    Char field
+    """
+
     def validate(self, value):
         if not isinstance(value, str):
             raise ValueError('Field "{}" must be a string'.format(self.name))
@@ -49,6 +57,10 @@ class CharField(Field):
 
 
 class ArgumentsField(Field):
+    """
+    Arguments field
+    """
+
     def validate(self, value):
         if not (isinstance(value, dict)):
             raise ValueError('Field "{}" must be a dict'.format(self.name))
@@ -56,6 +68,10 @@ class ArgumentsField(Field):
 
 
 class EmailField(CharField):
+    """
+    Email field
+    """
+
     def validate(self, value):
         value = super().validate(value)
         if "@" not in value:
@@ -64,6 +80,10 @@ class EmailField(CharField):
 
 
 class PhoneField(Field):
+    """
+    Phone field
+    """
+
     def validate(self, value):
         if not (isinstance(value, (int, str))):
             raise ValueError("Wrong type")
@@ -78,6 +98,10 @@ class PhoneField(Field):
 
 
 class DateField(CharField):
+    """
+    Date field
+    """
+
     def validate(self, value):
         try:
             value = super().validate(value)
@@ -90,6 +114,10 @@ class DateField(CharField):
 
 
 class BirthDayField(DateField):
+    """
+    Birthday field
+    """
+
     MAX_AGE = 70
 
     def validate(self, value):
@@ -102,6 +130,10 @@ class BirthDayField(DateField):
 
 
 class GenderField(Field):
+    """
+    Gender field
+    """
+
     def validate(self, val):
         possible_values = sorted(GENDERS.keys())
         err = 'Field "{}" must be an integer, one of {}'.format(
@@ -115,6 +147,10 @@ class GenderField(Field):
 
 
 class ClientIDsField(Field):
+    """
+    Client IDs field
+    """
+
     def validate(self, val):
         err = 'Field "{}" must be a list of positive integers'.format(self.name)
         if not isinstance(val, list) or not val:

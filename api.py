@@ -48,7 +48,6 @@ class ClientInterestsHandler:
         self.request = request
         self.context = context
         self.store = store
-
         self.client_ids = request.arguments.get("client_ids")
         self.date = request.arguments.get("date")
 
@@ -129,9 +128,7 @@ class MethodRequest:
 
 def check_auth(request):
     if request.is_admin:
-        bytes = (datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).encode(
-            "utf-8"
-        )
+        bytes = (datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).encode("utf-8")
         digest = hashlib.sha512(bytes).hexdigest()
     else:
         bytes = (request.account + request.login + SALT).encode("utf-8")
@@ -187,9 +184,7 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
             logging.info("%s: %s %s" % (self.path, data_string, context["request_id"]))
             if path in self.router:
                 try:
-                    response, code = self.router[path](
-                        {"body": request, "headers": self.headers}, context, self.store
-                    )
+                    response, code = self.router[path]({"body": request, "headers": self.headers}, context, self.store)
                 except Exception as e:
                     logging.exception("Unexpected error: %s" % e)
                     code = INTERNAL_ERROR
