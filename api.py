@@ -40,26 +40,46 @@ ERRORS = {
 }
 
 
-class ClientInterestsHandler:
+class RequestData:
+    def __init__(self, args):
+        if args:
+            errors = []
+            field_names = [k for k, v in self.generate_dict_field_items()]
+
+            for f in field_names:
+                try:
+                    setattr(self, f, args.get(f))
+                except ValueError as e:
+                    errors.append(str(e))
+
+            if errors:
+                raise ValueError(", ".join(errors))
+        else:
+            raise ValueError("Empty " + self.__class__.__name__ + ".")
+
+    def generate_dict_field_items(self):
+        for k, v in self.__class__.__dict__.items():
+            if isinstance(v, Field):
+                yield k, v
+
+    def validate(self):
+        pass
+
+
+class ClientInterestsHandler(RequestData):
     client_ids = ClientIDsField(required=True)
     date = DateField(required=False, nullable=True)
 
-    def __init__(self, request, context, store):
-        self.request = request
-        self.context = context
-        self.store = store
-        self.client_ids = request.arguments.get("client_ids")
-        self.date = request.arguments.get("date")
-
-    def do(self):
-        self.context["nclients"] = len(self.client_ids)
-        interests = {
-            cid: scoring.get_interests(self.store, cid) for cid in self.client_ids
-        }
+    def do(self, request, context, store):
+        context["nclients"] = len(self.client_ids)
+        interests = {cid: scoring.get_interests(store, cid) for cid in self.client_ids}
         return interests
 
+    def validate(self):
+        pass
 
-class OnlineScoreHandler:
+
+class OnlineScoreHandler(RequestData):
     first_name = CharField(required=False, nullable=True)
     last_name = CharField(required=False, nullable=True)
     email = EmailField(required=False, nullable=True)
@@ -67,17 +87,7 @@ class OnlineScoreHandler:
     birthday = BirthDayField(required=False, nullable=True)
     gender = GenderField(required=False, nullable=True)
 
-    def __init__(self, request, context, store):
-        self.request = request
-        self.context = context
-        self.store = store
-        self.first_name = request.arguments.get("first_name")
-        self.last_name = request.arguments.get("last_name")
-        self.email = request.arguments.get("email")
-        self.phone = request.arguments.get("phone")
-        self.birthday = request.arguments.get("birthday")
-        self.gender = request.arguments.get("gender")
-
+    def validate(self):
         if (
             (self.phone is None or self.email is None)
             and (self.first_name is None or self.last_name is None)
@@ -85,17 +95,17 @@ class OnlineScoreHandler:
         ):
             raise ValueError("Arguments must have at least one valid pair")
 
-    def do(self):
-        self.context["has"] = []
+    def do(self, request, context, store):
+        context["has"] = []
         for k, v in self.__class__.__dict__.items():
             if isinstance(v, Field) and getattr(self, k) is not None:
-                self.context["has"].append(k)
+                context["has"].append(k)
 
-        if self.request.is_admin:
+        if request.is_admin:
             score = 42
         else:
             score = scoring.get_score(
-                self.store,
+                store,
                 self.phone,
                 self.email,
                 birthday=self.birthday,
@@ -106,20 +116,12 @@ class OnlineScoreHandler:
         return {"score": score}
 
 
-class MethodRequest:
+class MethodRequest(RequestData):
     account = CharField(required=False, nullable=True)
     login = CharField(required=True, nullable=True)
     token = CharField(required=True, nullable=True)
     arguments = ArgumentsField(required=True, nullable=True)
     method = CharField(required=True, nullable=False)
-
-    def __init__(self, request):
-        body = request["body"]
-        self.account = body.get("account")
-        self.login = body.get("login")
-        self.token = body.get("token")
-        self.arguments = body.get("arguments")
-        self.method = body.get("method")
 
     @property
     def is_admin(self):
@@ -145,7 +147,7 @@ def method_handler(request, ctx, store):
     }
 
     try:
-        request = MethodRequest(request)
+        request = MethodRequest(request.get("body"))
         logging.debug("Request parsed correctly")
     except ValueError as e:
         return str(e), INVALID_REQUEST
@@ -153,12 +155,13 @@ def method_handler(request, ctx, store):
         return ERRORS[FORBIDDEN], FORBIDDEN
 
     try:
-        method = request_router[request.method](request, ctx, store)
+        method = request_router[request.method](request.arguments)
+        method.validate()
     except KeyError as e:
         return "Method {} not found".format(request.method), INVALID_REQUEST
     except ValueError as e:
         return str(e), INVALID_REQUEST
-    response = method.do()
+    response = method.do(request, ctx, store)
     return response, OK
 
 
