@@ -7,6 +7,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
 import logging
 from optparse import OptionParser
+from typing import Dict, Any
 import uuid
 
 from class_fields import (
@@ -41,14 +42,14 @@ ERRORS = {
 
 
 class RequestData:
-    def __init__(self, args):
+    def __init__(self, args: Dict[str, Any]):
         if args:
             errors = []
             field_names = [k for k, v in self.generate_dict_field_items()]
 
-            for f in field_names:
+            for field_name in field_names:
                 try:
-                    setattr(self, f, args.get(f))
+                    setattr(self, field_name, args.get(field_name))
                 except ValueError as e:
                     errors.append(str(e))
 
@@ -58,9 +59,9 @@ class RequestData:
             raise ValueError("Empty " + self.__class__.__name__ + ".")
 
     def generate_dict_field_items(self):
-        for k, v in self.__class__.__dict__.items():
-            if isinstance(v, Field):
-                yield k, v
+        for key, value in self.__class__.__dict__.items():
+            if isinstance(value, Field):
+                yield key, value
 
     def validate(self):
         pass
@@ -70,7 +71,7 @@ class ClientInterestsHandler(RequestData):
     client_ids = ClientIDsField(required=True)
     date = DateField(required=False, nullable=True)
 
-    def do(self, request, context, store):
+    def do(self, request: Dict[str, str], context: Dict[str, str], store) -> dict:
         context["nclients"] = len(self.client_ids)
         interests = {cid: scoring.get_interests(store, cid) for cid in self.client_ids}
         return interests
@@ -95,7 +96,7 @@ class OnlineScoreHandler(RequestData):
         ):
             raise ValueError("Arguments must have at least one valid pair")
 
-    def do(self, request, context, store):
+    def do(self, request, context: Dict[str, str], store: Dict[str, str]) -> dict:
         context["has"] = []
         for k, v in self.__class__.__dict__.items():
             if isinstance(v, Field) and getattr(self, k) is not None:
@@ -128,7 +129,7 @@ class MethodRequest(RequestData):
         return self.login == ADMIN_LOGIN
 
 
-def check_auth(request):
+def check_auth(request) -> bool:
     if request.is_admin:
         bytes = (datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).encode("utf-8")
         digest = hashlib.sha512(bytes).hexdigest()
@@ -140,7 +141,7 @@ def check_auth(request):
     return False
 
 
-def method_handler(request, ctx, store):
+def method_handler(request, ctx: Dict[str, str], store: Dict[str, str]):
     request_router = {
         "online_score": OnlineScoreHandler,
         "clients_interests": ClientInterestsHandler,
@@ -162,6 +163,7 @@ def method_handler(request, ctx, store):
     except ValueError as e:
         return str(e), INVALID_REQUEST
     response = method.do(request, ctx, store)
+
     return response, OK
 
 
@@ -169,7 +171,7 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
     router = {"method": method_handler}
     store = None
 
-    def get_request_id(self, headers):
+    def get_request_id(self, headers: str):
         return headers.get("HTTP_X_REQUEST_ID", uuid.uuid4().hex)
 
     def do_POST(self):

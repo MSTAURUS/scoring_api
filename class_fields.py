@@ -1,4 +1,5 @@
 import datetime
+from typing import Any, Dict, List, Union
 
 UNKNOWN = 0
 MALE = 1
@@ -41,7 +42,7 @@ class Field:
     def __get__(self, instance, cls):
         return getattr(instance, self.name)
 
-    def validate(self, value):
+    def validate(self, value: Any) -> bool:
         return bool(value)
 
 
@@ -50,7 +51,7 @@ class CharField(Field):
     Char field
     """
 
-    def validate(self, value):
+    def validate(self, value: str) -> str:
         if not isinstance(value, str):
             raise ValueError('Field "{}" must be a string'.format(self.name))
         return value
@@ -61,7 +62,7 @@ class ArgumentsField(Field):
     Arguments field
     """
 
-    def validate(self, value):
+    def validate(self, value: Dict[str, Any]) -> Dict[str, Any]:
         if not (isinstance(value, dict)):
             raise ValueError('Field "{}" must be a dict'.format(self.name))
         return value
@@ -72,7 +73,7 @@ class EmailField(CharField):
     Email field
     """
 
-    def validate(self, value):
+    def validate(self, value: str) -> str:
         value = super().validate(value)
         if "@" not in value:
             raise ValueError('Field "{}" must be a valid email addr'.format(self.name))
@@ -84,16 +85,12 @@ class PhoneField(Field):
     Phone field
     """
 
-    def validate(self, value):
+    def validate(self, value: Union[str, int]) -> str:
         if not (isinstance(value, (int, str))):
             raise ValueError("Wrong type")
         phone = str(value)
         if len(phone) != 11 or phone[0] != "7":
-            raise ValueError(
-                'Field "{}" must be an integer, 11 chars len and starting with 7'.format(
-                    self.name
-                )
-            )
+            raise ValueError('Field "{}" must be an integer, 11 chars len and starting with 7'.format(self.name))
         return phone
 
 
@@ -134,7 +131,7 @@ class GenderField(Field):
     Gender field
     """
 
-    def validate(self, val):
+    def validate(self, val: int) -> int:
         possible_values = sorted(GENDERS.keys())
         err = 'Field "{}" must be an integer, one of {}'.format(
             self.name, ", ".join(str(i) for i in possible_values)
@@ -151,7 +148,7 @@ class ClientIDsField(Field):
     Client IDs field
     """
 
-    def validate(self, val):
+    def validate(self, val: List[Any]) -> int:
         err = 'Field "{}" must be a list of positive integers'.format(self.name)
         if not isinstance(val, list) or not val:
             raise ValueError(err)

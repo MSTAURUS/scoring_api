@@ -1,8 +1,15 @@
 import random
+from typing import List, Any, Dict
 
 
 def get_score(
-    store, phone, email, birthday=None, gender=None, first_name=None, last_name=None
+    store: Dict[str, str],
+    phone: str,
+    email: str,
+    birthday: Any = None,
+    gender: int = None,
+    first_name: str = None,
+    last_name: str = None,
 ):
     score = 0
     if phone:
@@ -16,7 +23,7 @@ def get_score(
     return score
 
 
-def get_interests(store, cid):
+def get_interests(store: Dict[str, str], cid: int) -> List[str]:
     interests = [
         "cars",
         "pets",
